@@ -178,6 +178,10 @@
       item.querySelector('[data-action="delete"]').addEventListener('click', function () {
         deleteTodo(id);
       });
+      item.addEventListener('click', function (e) {
+        if (e.target.closest('[data-action]')) return;
+        openEdit(id);
+      });
     });
   }
 
