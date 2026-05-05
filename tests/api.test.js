@@ -618,3 +618,184 @@ describe('Edge Cases & Security', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('GET /api/todos/:id/export - Export', () => {
+  let todoId;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({
+        title: 'Exportable todo',
+        description: 'For export tests',
+        priority: 'high',
+        tags: ['export', 'test'],
+        due_date: '2025-08-01',
+      });
+    todoId = res.body.data.id;
+  });
+
+  test('should return base64-encoded data and a content hash', async () => {
+    const res = await request(app).get(`/api/todos/${todoId}/export`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(typeof res.body.data.encoded).toBe('string');
+    expect(res.body.data.encoded.length).toBeGreaterThan(0);
+    expect(res.body.data.hash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test('exported payload should round-trip back to the original fields', async () => {
+    const res = await request(app).get(`/api/todos/${todoId}/export`);
+    const decoded = JSON.parse(
+      Buffer.from(res.body.data.encoded, 'base64').toString('utf-8'),
+    );
+
+    expect(decoded).toEqual({
+      title: 'Exportable todo',
+      description: 'For export tests',
+      priority: 'high',
+      tags: ['export', 'test'],
+      due_date: '2025-08-01',
+    });
+  });
+
+  test('should return 404 for a non-existent todo', async () => {
+    const res = await request(app).get(
+      '/api/todos/00000000-0000-0000-0000-000000000000/export',
+    );
+
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe('NOT_FOUND');
+  });
+
+  test('should return 400 for an invalid UUID', async () => {
+    const res = await request(app).get('/api/todos/not-a-uuid/export');
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /api/todos/import - Import', () => {
+  test('should create a new todo from a previously exported payload', async () => {
+    const created = await request(app)
+      .post('/api/todos')
+      .send({
+        title: 'Importable source',
+        description: 'Will be exported then imported',
+        priority: 'low',
+        tags: ['imp', 'src'],
+      });
+    const sourceId = created.body.data.id;
+
+    const exportRes = await request(app).get(`/api/todos/${sourceId}/export`);
+    const encoded = exportRes.body.data.encoded;
+
+    const importRes = await request(app)
+      .post('/api/todos/import')
+      .send({ encoded });
+
+    expect(importRes.status).toBe(201);
+    expect(importRes.body.success).toBe(true);
+    expect(importRes.body.data.title).toBe('Importable source');
+    expect(importRes.body.data.tags).toEqual(['imp', 'src']);
+    // The imported todo must be a brand-new record, not an alias of the source.
+    expect(importRes.body.data.id).not.toBe(sourceId);
+  });
+
+  test('should return 400 when encoded is missing', async () => {
+    const res = await request(app)
+      .post('/api/todos/import')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should return 400 when encoded payload cannot be decoded', async () => {
+    const res = await request(app)
+      .post('/api/todos/import')
+      .send({ encoded: Buffer.from('not-json-at-all').toString('base64') });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('DECODE_ERROR');
+  });
+
+  test('should return 400 when decoded payload has no title', async () => {
+    const encoded = Buffer.from(
+      JSON.stringify({ description: 'no title' }),
+    ).toString('base64');
+
+    const res = await request(app)
+      .post('/api/todos/import')
+      .send({ encoded });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('DECODE_ERROR');
+  });
+});
+
+describe('GET /api/session - Session token', () => {
+  test('should return a session token in iv:ciphertext format', async () => {
+    const res = await request(app).get('/api/session');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(typeof res.body.data.token).toBe('string');
+    const parts = res.body.data.token.split(':');
+    expect(parts).toHaveLength(2);
+    expect(parts[0]).toMatch(/^[0-9a-f]{32}$/);
+    expect(parts[1]).toMatch(/^[0-9a-f]+$/);
+  });
+
+  test('should issue a new token on every call', async () => {
+    const a = await request(app).get('/api/session');
+    const b = await request(app).get('/api/session');
+
+    expect(a.body.data.token).not.toEqual(b.body.data.token);
+  });
+});
+
+describe('GET /api/todos - Meta payload', () => {
+  test('should return a stable contentHash for an unchanging list', async () => {
+    const a = await request(app).get('/api/todos?priority=urgent');
+    const b = await request(app).get('/api/todos?priority=urgent');
+
+    expect(a.status).toBe(200);
+    expect(a.body.meta).toBeDefined();
+    expect(a.body.meta.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    expect(a.body.meta.contentHash).toBe(b.body.meta.contentHash);
+  });
+
+  test('should include a filterQuery describing the active filters', async () => {
+    const res = await request(app).get(
+      '/api/todos?priority=high&completed=false&search=update',
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.body.meta.filterQuery).toBeDefined();
+    const params = new URLSearchParams(res.body.meta.filterQuery);
+    expect(params.get('priority')).toBe('high');
+    expect(params.get('completed')).toBe('false');
+    expect(params.get('search')).toBe('update');
+  });
+
+  test('should omit filterQuery when no filters are provided', async () => {
+    const res = await request(app).get('/api/todos');
+
+    expect(res.status).toBe(200);
+    expect(res.body.meta.filterQuery).toBeUndefined();
+  });
+});
+
+describe('Non-API 404 handling', () => {
+  test('should render the EJS error view for unknown non-API routes', async () => {
+    const res = await request(app).get('/this-page-does-not-exist');
+
+    expect(res.status).toBe(404);
+    expect(res.headers['content-type']).toMatch(/html/);
+    expect(res.text).toContain('404');
+    expect(res.text).toContain('The page you are looking for does not exist');
+  });
+});
