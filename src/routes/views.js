@@ -4,7 +4,7 @@ const router = express.Router();
 
 router.get('/', (_req, res) => {
   res.render('index', {
-    title: 'Task Manager',
+    title: 'Hi Devin',
   });
 });
 
