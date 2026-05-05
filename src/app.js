@@ -29,6 +29,9 @@ app.use(helmet({
       imgSrc: ['\'self\'', 'data:'],
     },
   },
+  crossOriginOpenerPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  originAgentCluster: false,
 }));
 
 app.use(cors(config.cors));
