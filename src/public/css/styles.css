@@ -7,12 +7,12 @@
 }
 
 :root {
-  --color-bg: #0f1117;
-  --color-surface: #1a1d27;
-  --color-surface-hover: #222536;
-  --color-border: #2a2d3a;
-  --color-text: #e4e6ef;
-  --color-text-muted: #8b8fa3;
+  --color-bg: #ffffff;
+  --color-surface: #f8f9fa;
+  --color-surface-hover: #e9ecef;
+  --color-border: #dee2e6;
+  --color-text: #212529;
+  --color-text-muted: #6c757d;
   --color-primary: #6366f1;
   --color-primary-hover: #4f46e5;
   --color-success: #22c55e;
@@ -25,9 +25,9 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.2);
   --transition: 200ms ease;
   --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
@@ -414,6 +414,7 @@ body {
   margin-bottom: 6px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -677,9 +678,6 @@ body {
   min-height: 200px;
 }
 
-.edit-form {
-  /* inherits form-group / input styles from shared rules */
-}
 
 /* Disabled buttons */
 .btn:disabled {
