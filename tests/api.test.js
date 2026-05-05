@@ -62,6 +62,7 @@ describe('POST /api/todos - Create', () => {
         priority: 'high',
         tags: ['work', 'important'],
         due_date: '2025-12-31',
+        assignee: 'Alice',
       });
 
     expect(res.status).toBe(201);
@@ -72,7 +73,21 @@ describe('POST /api/todos - Create', () => {
       priority: 'high',
       tags: ['work', 'important'],
       due_date: '2025-12-31',
+      assignee: 'Alice',
     });
+  });
+
+  test('should create a todo with assignee and verify on GET', async () => {
+    const createRes = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Assigned task', assignee: 'Bob' });
+
+    expect(createRes.status).toBe(201);
+    expect(createRes.body.data.assignee).toBe('Bob');
+
+    const getRes = await request(app).get(`/api/todos/${createRes.body.data.id}`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.data.assignee).toBe('Bob');
   });
 
   test('should create a todo with urgent priority', async () => {
@@ -345,6 +360,19 @@ describe('PUT /api/todos/:id - Update', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.due_date).toBe('2025-06-15');
+  });
+
+  test('should update assignee', async () => {
+    const res = await request(app)
+      .put(`/api/todos/${todoId}`)
+      .send({ assignee: 'Charlie' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.assignee).toBe('Charlie');
+
+    const getRes = await request(app).get(`/api/todos/${todoId}`);
+    expect(getRes.status).toBe(200);
+    expect(getRes.body.data.assignee).toBe('Charlie');
   });
 
   test('should update multiple fields at once', async () => {

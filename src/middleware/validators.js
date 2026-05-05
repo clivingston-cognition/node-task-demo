@@ -62,6 +62,13 @@ const validateCreateTodo = [
     .optional({ values: 'null' })
     .isISO8601()
     .withMessage('Due date must be a valid ISO 8601 date'),
+  body('assignee')
+    .optional({ values: 'null' })
+    .isString()
+    .withMessage('Assignee must be a string')
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Assignee must not exceed 255 characters'),
   handleValidationErrors,
 ];
 
@@ -103,6 +110,13 @@ const validateUpdateTodo = [
     .optional({ values: 'null' })
     .isISO8601()
     .withMessage('Due date must be a valid ISO 8601 date'),
+  body('assignee')
+    .optional({ values: 'null' })
+    .isString()
+    .withMessage('Assignee must be a string')
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('Assignee must not exceed 255 characters'),
   handleValidationErrors,
 ];
 
