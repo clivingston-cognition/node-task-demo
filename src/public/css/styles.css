@@ -7,7 +7,7 @@
 }
 
 :root {
-  --color-bg: #0f1117;
+  --color-bg: #ffffff;
   --color-surface: #1a1d27;
   --color-surface-hover: #222536;
   --color-border: #2a2d3a;
@@ -186,12 +186,12 @@ body {
 }
 
 .btn-primary {
-  background: var(--color-primary);
+  background: #000000;
   color: white;
 }
 
 .btn-primary:hover {
-  background: var(--color-primary-hover);
+  background: #222222;
 }
 
 .btn-secondary {
