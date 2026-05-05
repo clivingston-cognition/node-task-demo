@@ -34,6 +34,13 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'add_assignee_to_todos',
+    up: `
+      ALTER TABLE todos ADD COLUMN assignee TEXT DEFAULT NULL;
+    `,
+  },
 ];
 
 function runMigrations() {
