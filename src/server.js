@@ -3,12 +3,13 @@ const config = require('./config');
 const { closeConnection } = require('./db/connection');
 
 const server = app.listen(config.port, config.host, () => {
+  const displayHost = config.host === '0.0.0.0' ? 'localhost' : config.host;
   console.log(`
   ╔═══════════════════════════════════════════╗
   ║        Task Manager App - Running!        ║
   ╠═══════════════════════════════════════════╣
   ║  Environment : ${config.env.padEnd(25)} ║
-  ║  Server      : http://${config.host}:${config.port}${' '.repeat(Math.max(0, 16 - `${config.host}:${config.port}`.length))} ║
+  ║  Server      : http://${displayHost}:${config.port}${' '.repeat(Math.max(0, 16 - `${displayHost}:${config.port}`.length))} ║
   ║  API Base    : /api/todos${' '.repeat(16)} ║
   ╚═══════════════════════════════════════════╝
   `);
