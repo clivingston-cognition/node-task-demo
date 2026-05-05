@@ -22,8 +22,48 @@
   const closeModalBtn = document.getElementById('closeModal');
   const cancelEditBtn = document.getElementById('cancelEdit');
 
+  // Theme
+  var themeToggleBtn = document.getElementById('themeToggle');
+
+  function updateThemeIcon() {
+    if (!themeToggleBtn) return;
+    var saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+      themeToggleBtn.innerHTML = '&#9728;';
+      themeToggleBtn.title = 'Theme: Light';
+    } else if (saved === 'dark') {
+      themeToggleBtn.innerHTML = '&#9790;';
+      themeToggleBtn.title = 'Theme: Dark';
+    } else {
+      themeToggleBtn.innerHTML = '&#9681;';
+      themeToggleBtn.title = 'Theme: Auto';
+    }
+  }
+
+  function cycleTheme() {
+    var current = localStorage.getItem('theme');
+    var next;
+    if (!current) {
+      next = 'light';
+    } else if (current === 'light') {
+      next = 'dark';
+    } else {
+      next = null;
+    }
+    if (next) {
+      localStorage.setItem('theme', next);
+      document.documentElement.dataset.theme = next;
+    } else {
+      localStorage.removeItem('theme');
+      document.documentElement.removeAttribute('data-theme');
+    }
+    updateThemeIcon();
+  }
+
   // Initialize
   document.addEventListener('DOMContentLoaded', function () {
+    updateThemeIcon();
+    if (themeToggleBtn) themeToggleBtn.addEventListener('click', cycleTheme);
     loadTodos();
     loadStats();
     bindEvents();
