@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="app-header">
+      <div class="header-content">
+        <h1 class="app-title">
+          <span class="title-icon">&#9745;</span>
+          Task Management
+        </h1>
+        <div class="stats-bar" id="statsBar">
+          <span class="stat" id="statTotal">0 total</span>
+          <span class="stat-divider">|</span>
+          <span class="stat stat-pending" id="statPending">0 pending</span>
+          <span class="stat-divider">|</span>
+          <span class="stat stat-completed" id="statCompleted">0 done</span>
+          <span class="stat-divider">|</span>
+          <span class="stat stat-overdue" id="statOverdue">0 overdue</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="create-section">
+        <form id="createTodoForm" class="create-form">
+          <div class="form-row">
+            <input type="text" id="todoTitle" class="input-title" placeholder="What needs to be done?" required maxlength="255" autocomplete="off">
+            <button type="submit" class="btn btn-primary" id="addBtn">Add Task</button>
+          </div>
+          <div class="form-row form-details" id="formDetails">
+            <textarea id="todoDescription" class="input-description" placeholder="Add a description (optional)" maxlength="2000" rows="2"></textarea>
+            <div class="form-options">
+              <select id="todoPriority" class="select-priority">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+              <input type="date" id="todoDueDate" class="input-date" placeholder="Due date">
+              <input type="text" id="todoTags" class="input-tags" placeholder="Tags (comma-separated)">
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section class="controls-section">
+        <div class="filter-group">
+          <button class="btn btn-filter active" data-filter="all">All</button>
+          <button class="btn btn-filter" data-filter="pending">Pending</button>
+          <button class="btn btn-filter" data-filter="completed">Completed</button>
+        </div>
+        <div class="sort-group">
+          <select id="sortField" class="select-sort">
+            <option value="created_at">Created</option>
+            <option value="updated_at">Updated</option>
+            <option value="title">Title</option>
+            <option value="priority">Priority</option>
+            <option value="due_date">Due Date</option>
+          </select>
+          <button class="btn btn-sort" id="sortOrder" data-order="DESC" title="Sort order">&#8595;</button>
+        </div>
+        <div class="search-group">
+          <input type="text" id="searchInput" class="input-search" placeholder="Search todos...">
+        </div>
+        <div class="bulk-actions">
+          <button class="btn btn-danger-sm" id="clearCompletedBtn" title="Delete all completed">Clear Done</button>
+        </div>
+      </section>
+
+      <section class="todos-section">
+        <div id="todoList" class="todo-list">
+          <div class="loading-spinner" id="loadingSpinner">Loading...</div>
+        </div>
+        <div class="pagination" id="pagination"></div>
+      </section>
+    </main>
+
+    <div class="modal-overlay" id="editModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Edit Task</h2>
+          <button class="btn-close" id="closeModal">&times;</button>
+        </div>
+        <form id="editTodoForm" class="edit-form">
+          <input type="hidden" id="editTodoId">
+          <div class="form-group">
+            <label for="editTitle">Title</label>
+            <input type="text" id="editTitle" class="input-title" required maxlength="255">
+          </div>
+          <div class="form-group">
+            <label for="editDescription">Description</label>
+            <textarea id="editDescription" class="input-description" maxlength="2000" rows="3"></textarea>
+          </div>
+          <div class="form-group form-row-inline">
+            <div>
+              <label for="editPriority">Priority</label>
+              <select id="editPriority" class="select-priority">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div>
+              <label for="editDueDate">Due Date</label>
+              <input type="date" id="editDueDate" class="input-date">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="editTags">Tags (comma-separated)</label>
+            <input type="text" id="editTags" class="input-tags">
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="cancelEdit">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
