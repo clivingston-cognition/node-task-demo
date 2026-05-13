@@ -21,6 +21,10 @@ const config = {
     maxLimit: 100,
   },
 
+  batch: {
+    maxSize: parseInt(process.env.BATCH_MAX_SIZE, 10) || 50,
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
   },

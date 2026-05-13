@@ -2,6 +2,7 @@ const express = require('express');
 const todoModel = require('../models/todo');
 const {
   validateCreateTodo,
+  validateBatchCreateTodo,
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,
@@ -104,6 +105,26 @@ router.post('/todos', validateCreateTodo, (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'CREATE_ERROR', message: 'Failed to create todo' },
+    });
+  }
+});
+
+router.post('/todos/batch', validateBatchCreateTodo, (req, res) => {
+  try {
+    const todos = req.body.todos.map((todo) => ({
+      ...todo,
+      title: normalizeInternationalText(todo.title),
+    }));
+    const created = todoModel.createBatch(todos);
+    res.status(201).json({
+      success: true,
+      data: { created, count: created.length },
+    });
+  } catch (error) {
+    console.error('Error batch creating todos:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_CREATE_ERROR', message: 'Failed to batch create todos' },
     });
   }
 });
