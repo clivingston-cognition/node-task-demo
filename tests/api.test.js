@@ -618,3 +618,149 @@ describe('Edge Cases & Security', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('POST /api/todos/batch - Batch Create', () => {
+  test('should batch create multiple todos', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Batch todo 1' },
+          { title: 'Batch todo 2', priority: 'high' },
+          { title: 'Batch todo 3', description: 'Desc', tags: ['a', 'b'] },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.count).toBe(3);
+    expect(res.body.data.created).toHaveLength(3);
+    expect(res.body.data.created[0]).toMatchObject({
+      title: 'Batch todo 1',
+      completed: false,
+      priority: 'medium',
+      tags: [],
+    });
+    expect(res.body.data.created[1].priority).toBe('high');
+    expect(res.body.data.created[2].tags).toEqual(['a', 'b']);
+    res.body.data.created.forEach((todo) => {
+      expect(todo.id).toBeDefined();
+      expect(todo.created_at).toBeDefined();
+      expect(todo.updated_at).toBeDefined();
+    });
+  });
+
+  test('should batch create a single-item array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Solo batch todo' }] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.count).toBe(1);
+    expect(res.body.data.created[0].title).toBe('Solo batch todo');
+  });
+
+  test('should persist all batch-created todos (verifiable via list)', async () => {
+    const unique = `batch-tag-${Date.now()}`;
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Persisted 1', tags: [unique] },
+          { title: 'Persisted 2', tags: [unique] },
+        ],
+      });
+    expect(res.status).toBe(201);
+
+    const list = await request(app).get(`/api/todos?tag=${unique}`);
+    expect(list.status).toBe(200);
+    expect(list.body.data.length).toBe(2);
+  });
+
+  test('should reject empty array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject missing todos field', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject non-array todos field', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: 'not-an-array' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject batch with item missing title', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Valid' },
+          { description: 'No title' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject batch with invalid priority', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Valid' },
+          { title: 'Bad priority', priority: 'super-urgent' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject batch exceeding max batch size', async () => {
+    const config = require('../src/config');
+    const tooMany = Array.from({ length: config.batch.maxSize + 1 }, (_, i) => ({
+      title: `Item ${i}`,
+    }));
+
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: tooMany });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should rollback transaction if any insert fails', async () => {
+    const todoModel = require('../src/models/todo');
+
+    const before = todoModel.findAll({ page: 1, limit: 1000 }).pagination.total;
+
+    expect(() =>
+      todoModel.createBatch([
+        { title: 'Will be rolled back 1' },
+        { title: null },
+        { title: 'Will be rolled back 2' },
+      ]),
+    ).toThrow();
+
+    const after = todoModel.findAll({ page: 1, limit: 1000 }).pagination.total;
+    expect(after).toBe(before);
+  });
+});
