@@ -618,3 +618,153 @@ describe('Edge Cases & Security', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('POST /api/todos/batch - Batch Create', () => {
+  test('should batch create multiple todos', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Batch todo 1' },
+          { title: 'Batch todo 2', priority: 'high' },
+          { title: 'Batch todo 3', description: 'With description', tags: ['batch'] },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.created).toHaveLength(3);
+    expect(res.body.data.summary).toEqual({ total: 3, succeeded: 3, failed: 0 });
+    expect(res.body.data.created[0].title).toBe('Batch todo 1');
+    expect(res.body.data.created[1].priority).toBe('high');
+    expect(res.body.data.created[2].tags).toEqual(['batch']);
+  });
+
+  test('should batch create a single todo', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Single batch item' }] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.created).toHaveLength(1);
+    expect(res.body.data.summary.total).toBe(1);
+  });
+
+  test('should batch create todos with all fields', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          {
+            title: 'Full batch todo',
+            description: 'Detailed description',
+            priority: 'urgent',
+            tags: ['work', 'important'],
+            due_date: '2025-12-31',
+          },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.created[0]).toMatchObject({
+      title: 'Full batch todo',
+      description: 'Detailed description',
+      priority: 'urgent',
+      tags: ['work', 'important'],
+      due_date: '2025-12-31',
+    });
+  });
+
+  test('should fail when todos is not an array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: 'not-an-array' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when todos array is empty', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when a todo item is missing title', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ description: 'No title' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when a todo item has an invalid priority', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Bad priority', priority: 'invalid' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when a todo item has an invalid due_date', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Bad date', due_date: 'not-a-date' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when a todo title exceeds 255 characters', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'a'.repeat(256) }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when todos body is missing', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should return unique IDs for all batch created todos', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Unique ID 1' },
+          { title: 'Unique ID 2' },
+          { title: 'Unique ID 3' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    const ids = res.body.data.created.map((t) => t.id);
+    const uniqueIds = new Set(ids);
+    expect(uniqueIds.size).toBe(3);
+  });
+
+  test('should set default values for optional fields', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Defaults test' }] });
+
+    expect(res.status).toBe(201);
+    const todo = res.body.data.created[0];
+    expect(todo.completed).toBe(false);
+    expect(todo.priority).toBe('medium');
+    expect(todo.tags).toEqual([]);
+    expect(todo.description).toBe('');
+  });
+});
