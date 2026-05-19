@@ -21,6 +21,13 @@
   const clearCompletedBtn = document.getElementById('clearCompletedBtn');
   const closeModalBtn = document.getElementById('closeModal');
   const cancelEditBtn = document.getElementById('cancelEdit');
+  const batchSection = document.getElementById('batchSection');
+  const createSection = document.querySelector('.create-section');
+  const batchCreateForm = document.getElementById('batchCreateForm');
+  const batchEntries = document.getElementById('batchEntries');
+  const addBatchEntryBtn = document.getElementById('addBatchEntry');
+  const switchToBatchBtn = document.getElementById('switchToBatch');
+  const switchToSingleBtn = document.getElementById('switchToSingle');
 
   // Initialize
   document.addEventListener('DOMContentLoaded', function () {
@@ -65,6 +72,11 @@
     clearCompletedBtn.addEventListener('click', handleClearCompleted);
     closeModalBtn.addEventListener('click', closeEditModal);
     cancelEditBtn.addEventListener('click', closeEditModal);
+
+    switchToBatchBtn.addEventListener('click', switchToBatchMode);
+    switchToSingleBtn.addEventListener('click', switchToSingleMode);
+    addBatchEntryBtn.addEventListener('click', addBatchEntry);
+    batchCreateForm.addEventListener('submit', handleBatchCreate);
 
     editModal.addEventListener('click', function (e) {
       if (e.target === editModal) closeEditModal();
@@ -354,6 +366,75 @@
       toast.classList.add('toast-removing');
       setTimeout(function () { toast.remove(); }, 300);
     }, 3000);
+  }
+
+  // Batch mode functions
+  function switchToBatchMode() {
+    createSection.style.display = 'none';
+    batchSection.style.display = 'block';
+    batchEntries.innerHTML = '';
+    addBatchEntry();
+    addBatchEntry();
+  }
+
+  function switchToSingleMode() {
+    batchSection.style.display = 'none';
+    createSection.style.display = 'block';
+  }
+
+  function addBatchEntry() {
+    var row = document.createElement('div');
+    row.className = 'batch-entry';
+    row.innerHTML =
+      '<input type="text" class="input-title batch-title" placeholder="Task title" maxlength="255">' +
+      '<select class="select-priority batch-priority">' +
+      '<option value="low">Low</option>' +
+      '<option value="medium" selected>Medium</option>' +
+      '<option value="high">High</option>' +
+      '<option value="urgent">Urgent</option>' +
+      '</select>' +
+      '<button type="button" class="btn btn-danger-sm batch-remove" title="Remove">&times;</button>';
+    row.querySelector('.batch-remove').addEventListener('click', function () {
+      removeBatchEntry(row);
+    });
+    batchEntries.appendChild(row);
+  }
+
+  function removeBatchEntry(el) {
+    if (batchEntries.children.length > 1) {
+      el.remove();
+    }
+  }
+
+  async function handleBatchCreate(e) {
+    e.preventDefault();
+    var entries = batchEntries.querySelectorAll('.batch-entry');
+    var todos = [];
+    entries.forEach(function (entry) {
+      var title = entry.querySelector('.batch-title').value.trim();
+      var priority = entry.querySelector('.batch-priority').value;
+      if (title) {
+        todos.push({ title: title, priority: priority });
+      }
+    });
+    if (todos.length === 0) {
+      showToast('At least one task title is required', 'error');
+      return;
+    }
+    try {
+      var result = await apiRequest(API_BASE + '/batch', {
+        method: 'POST',
+        body: JSON.stringify({ todos: todos }),
+      });
+      showToast(result.data.length + ' task(s) created!', 'success');
+      batchEntries.innerHTML = '';
+      addBatchEntry();
+      addBatchEntry();
+      loadTodos();
+      loadStats();
+    } catch (_e) {
+      // error already handled
+    }
   }
 
   // Expose to window for inline handlers
