@@ -180,6 +180,27 @@ class TodoModel {
     };
   }
 
+  createBatch(items) {
+    const db = this._getDb();
+    const now = new Date().toISOString();
+    const stmt = db.prepare(`
+      INSERT INTO ${this.tableName} (id, title, description, completed, priority, tags, due_date, created_at, updated_at)
+      VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)
+    `);
+
+    const ids = [];
+    const insertAll = db.transaction((todos) => {
+      for (const todo of todos) {
+        const id = uuidv4();
+        stmt.run(id, todo.title, todo.description || '', todo.priority || 'medium', JSON.stringify(todo.tags || []), todo.due_date || null, now, now);
+        ids.push(id);
+      }
+    });
+
+    insertAll(items);
+    return ids.map((id) => this.findById(id));
+  }
+
   deleteCompleted() {
     const db = this._getDb();
     const stmt = db.prepare(`DELETE FROM ${this.tableName} WHERE completed = 1`);
