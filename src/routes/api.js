@@ -5,6 +5,7 @@ const {
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,
+  validateBatchCreateTodos,
 } = require('../middleware/validators');
 const config = require('../config');
 const { sanitizeSearchQuery, buildFilterQueryString } = require('../utils/sanitizer');
@@ -215,6 +216,24 @@ router.get('/todos/:id/export', validateTodoId, (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'EXPORT_ERROR', message: 'Failed to export todo' },
+    });
+  }
+});
+
+router.post('/todos/batch', validateBatchCreateTodos, (req, res) => {
+  try {
+    const { todos } = req.body;
+    const normalizedTodos = todos.map((t) => ({
+      ...t,
+      title: normalizeInternationalText(t.title),
+    }));
+    const created = todoModel.createBatch(normalizedTodos);
+    res.status(201).json({ success: true, data: created });
+  } catch (error) {
+    console.error('Error batch creating todos:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_CREATE_ERROR', message: 'Failed to create todos in batch' },
     });
   }
 });
