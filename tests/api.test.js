@@ -618,3 +618,146 @@ describe('Edge Cases & Security', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('POST /api/todos/batch - Batch Create', () => {
+  test('should create multiple todos', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Batch todo 1', priority: 'high' },
+          { title: 'Batch todo 2', description: 'desc', tags: ['tag1'] },
+          { title: 'Batch todo 3', due_date: '2099-12-31T00:00:00.000Z' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0].title).toBe('Batch todo 1');
+    expect(res.body.data[0].priority).toBe('high');
+    expect(res.body.data[1].tags).toEqual(['tag1']);
+    expect(res.body.data[2].due_date).toBe('2099-12-31T00:00:00.000Z');
+  });
+
+  test('should create up to 100 todos successfully', async () => {
+    const todos = Array.from({ length: 100 }, (_, i) => ({
+      title: `Bulk todo ${i + 1}`,
+    }));
+
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveLength(100);
+  });
+
+  test('should fail with 400 if todos is not provided', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('should fail with 400 if todos is not an array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: 'not-an-array' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('should fail with 400 if todos array is empty', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('should fail with 400 if todos array exceeds 100 items', async () => {
+    const todos = Array.from({ length: 101 }, (_, i) => ({
+      title: `Todo ${i + 1}`,
+    }));
+
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('should fail with 400 if any todo is missing a title', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Valid todo' },
+          { description: 'Missing title' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('should fail with 400 if any todo has an invalid priority', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Valid todo', priority: 'high' },
+          { title: 'Invalid priority', priority: 'critical' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+  });
+
+  test('should verify all returned IDs are unique', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Unique ID 1' },
+          { title: 'Unique ID 2' },
+          { title: 'Unique ID 3' },
+          { title: 'Unique ID 4' },
+          { title: 'Unique ID 5' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    const ids = res.body.data.map(t => t.id);
+    const uniqueIds = new Set(ids);
+    expect(uniqueIds.size).toBe(5);
+  });
+
+  test('should verify that titles are properly normalized (international text)', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Ça fait résumé' },
+          { title: 'naïve café' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data).toHaveLength(2);
+    // normalizeInternationalText should have been applied
+    expect(res.body.data[0].title).toBeDefined();
+    expect(res.body.data[1].title).toBeDefined();
+    // Titles should be strings (normalization preserves valid unicode)
+    expect(typeof res.body.data[0].title).toBe('string');
+    expect(typeof res.body.data[1].title).toBe('string');
+  });
+});

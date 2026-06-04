@@ -92,6 +92,25 @@ class TodoModel {
     return this.findById(id);
   }
 
+  createMany(items) {
+    const db = this._getDb();
+    const ids = [];
+    const insertMany = db.transaction((todos) => {
+      const stmt = db.prepare(`
+        INSERT INTO ${this.tableName} (id, title, description, completed, priority, tags, due_date, created_at, updated_at)
+        VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)
+      `);
+      for (const todo of todos) {
+        const id = uuidv4();
+        const now = new Date().toISOString();
+        stmt.run(id, todo.title, todo.description || '', todo.priority || 'medium', JSON.stringify(todo.tags || []), todo.due_date || null, now, now);
+        ids.push(id);
+      }
+    });
+    insertMany(items);
+    return ids.map(id => this.findById(id));
+  }
+
   update(id, updates) {
     const db = this._getDb();
     const existing = this.findById(id);
