@@ -618,3 +618,133 @@ describe('Edge Cases & Security', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('POST /api/todos/batch', () => {
+  test('should successfully create multiple todos', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Batch item 1', priority: 'low' },
+          { title: 'Batch item 2', priority: 'high', tags: ['batch'] },
+          { title: 'Batch item 3' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.created).toHaveLength(3);
+    expect(res.body.data.failed).toHaveLength(0);
+    expect(res.body.data.summary).toEqual({ total: 3, succeeded: 3, failed: 0 });
+    expect(res.body.data.created[0].title).toBe('Batch item 1');
+    expect(res.body.data.created[1].priority).toBe('high');
+  });
+
+  test('should return 207 for partial success with valid and invalid items', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Valid batch item' },
+          { title: '' },
+          { title: 'Another valid item', priority: 'urgent' },
+          { title: 'Bad priority', priority: 'invalid' },
+        ],
+      });
+
+    expect(res.status).toBe(207);
+    expect(res.body.success).toBe('partial');
+    expect(res.body.data.created).toHaveLength(2);
+    expect(res.body.data.failed).toHaveLength(2);
+    expect(res.body.data.summary).toEqual({ total: 4, succeeded: 2, failed: 2 });
+    expect(res.body.data.created[0].title).toBe('Valid batch item');
+    expect(res.body.data.created[1].priority).toBe('urgent');
+    expect(res.body.data.failed[0].index).toBe(1);
+    expect(res.body.data.failed[0].errors.length).toBeGreaterThan(0);
+    expect(res.body.data.failed[1].index).toBe(3);
+  });
+
+  test('should return 400 when all items are invalid', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: '' },
+          { description: 'no title here' },
+          { title: 'a'.repeat(256) },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.data.created).toHaveLength(0);
+    expect(res.body.data.failed).toHaveLength(3);
+    expect(res.body.data.summary).toEqual({ total: 3, succeeded: 0, failed: 3 });
+  });
+
+  test('should reject when todos is not an array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: 'not-an-array' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject when todos is empty', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject when todos has more than 100 items', async () => {
+    const todos = Array.from({ length: 101 }, (_, i) => ({ title: `Item ${i}` }));
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should normalize international text in batch-created titles', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Ça fait résumé' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.created).toHaveLength(1);
+    expect(res.body.data.created[0].title).toBeDefined();
+    expect(typeof res.body.data.created[0].title).toBe('string');
+  });
+
+  test('should include correct index for each failed item', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Good item' },
+          { title: 'Another good item' },
+          { title: '' },
+          { title: 'Yet another good item' },
+          { priority: 'invalid' },
+        ],
+      });
+
+    expect(res.status).toBe(207);
+    expect(res.body.data.failed).toHaveLength(2);
+    expect(res.body.data.failed[0].index).toBe(2);
+    expect(res.body.data.failed[1].index).toBe(4);
+    expect(res.body.data.created).toHaveLength(3);
+  });
+});

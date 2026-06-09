@@ -113,6 +113,60 @@ const validateTodoId = [
   handleValidationErrors,
 ];
 
+const validateBatchCreateTodo = [
+  body('todos')
+    .isArray({ min: 1, max: 100 })
+    .withMessage('todos must be a non-empty array with at most 100 items'),
+  handleValidationErrors,
+];
+
+const ALLOWED_PRIORITIES = ['low', 'medium', 'high', 'urgent'];
+
+function validateTodoItem(item) {
+  const errors = [];
+
+  if (item.title === undefined || item.title === null || typeof item.title !== 'string' || item.title.trim().length === 0) {
+    errors.push({ field: 'title', message: 'Title is required' });
+  } else if (item.title.trim().length > 255) {
+    errors.push({ field: 'title', message: 'Title must be between 1 and 255 characters' });
+  }
+
+  if (item.description !== undefined && item.description !== null) {
+    if (typeof item.description !== 'string') {
+      errors.push({ field: 'description', message: 'Description must be a string' });
+    } else if (item.description.length > 2000) {
+      errors.push({ field: 'description', message: 'Description must not exceed 2000 characters' });
+    }
+  }
+
+  if (item.priority !== undefined && item.priority !== null) {
+    if (!ALLOWED_PRIORITIES.includes(item.priority)) {
+      errors.push({ field: 'priority', message: 'Priority must be one of: low, medium, high, urgent' });
+    }
+  }
+
+  if (item.tags !== undefined && item.tags !== null) {
+    if (!Array.isArray(item.tags)) {
+      errors.push({ field: 'tags', message: 'Tags must be an array' });
+    } else {
+      item.tags.forEach((tag, i) => {
+        if (typeof tag !== 'string' || tag.trim().length < 1 || tag.trim().length > 50) {
+          errors.push({ field: `tags[${i}]`, message: 'Each tag must be between 1 and 50 characters' });
+        }
+      });
+    }
+  }
+
+  if (item.due_date !== undefined && item.due_date !== null) {
+    const iso8601Regex = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+    if (typeof item.due_date !== 'string' || !iso8601Regex.test(item.due_date) || isNaN(Date.parse(item.due_date))) {
+      errors.push({ field: 'due_date', message: 'Due date must be a valid ISO 8601 date' });
+    }
+  }
+
+  return errors;
+}
+
 const validateListQuery = [
   query('page')
     .optional()
@@ -151,5 +205,7 @@ module.exports = {
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,
+  validateBatchCreateTodo,
+  validateTodoItem,
   handleValidationErrors,
 };

@@ -5,6 +5,8 @@ const {
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,
+  validateBatchCreateTodo,
+  validateTodoItem,
 } = require('../middleware/validators');
 const config = require('../config');
 const { sanitizeSearchQuery, buildFilterQueryString } = require('../utils/sanitizer');
@@ -88,6 +90,48 @@ router.get('/todos/:id', validateTodoId, (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'FETCH_ERROR', message: 'Failed to fetch todo' },
+    });
+  }
+});
+
+router.post('/todos/batch', validateBatchCreateTodo, (req, res) => {
+  try {
+    const { todos } = req.body;
+    const created = [];
+    const failed = [];
+
+    todos.forEach((item, index) => {
+      const errors = validateTodoItem(item);
+      if (errors.length > 0) {
+        failed.push({ index, errors });
+        return;
+      }
+      const normalizedItem = {
+        ...item,
+        title: normalizeInternationalText(item.title),
+      };
+      const todo = todoModel.create(normalizedItem);
+      created.push(todo);
+    });
+
+    const summary = {
+      total: todos.length,
+      succeeded: created.length,
+      failed: failed.length,
+    };
+
+    if (failed.length === 0) {
+      return res.status(201).json({ success: true, data: { created, failed, summary } });
+    } else if (created.length > 0) {
+      return res.status(207).json({ success: 'partial', data: { created, failed, summary } });
+    } else {
+      return res.status(400).json({ success: false, data: { created, failed, summary } });
+    }
+  } catch (error) {
+    console.error('Error batch creating todos:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_CREATE_ERROR', message: 'Failed to batch create todos' },
     });
   }
 });
