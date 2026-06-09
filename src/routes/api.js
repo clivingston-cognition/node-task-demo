@@ -5,6 +5,8 @@ const {
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,
+  validateBatchCreateTodo,
+  validateSingleTodoItem,
 } = require('../middleware/validators');
 const config = require('../config');
 const { sanitizeSearchQuery, buildFilterQueryString } = require('../utils/sanitizer');
@@ -88,6 +90,55 @@ router.get('/todos/:id', validateTodoId, (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'FETCH_ERROR', message: 'Failed to fetch todo' },
+    });
+  }
+});
+
+router.post('/todos/batch', validateBatchCreateTodo, (req, res) => {
+  try {
+    const { todos } = req.body;
+    const validTodos = [];
+    const failed = [];
+
+    todos.forEach((todo, index) => {
+      const errors = validateSingleTodoItem(todo);
+      if (errors.length > 0) {
+        failed.push({ index, errors });
+      } else {
+        validTodos.push({ ...todo, title: normalizeInternationalText(todo.title) });
+      }
+    });
+
+    if (validTodos.length === 0) {
+      return res.status(400).json({
+        success: false,
+        data: {
+          created: [],
+          failed,
+          totalReceived: todos.length,
+          totalCreated: 0,
+          totalFailed: failed.length,
+        },
+      });
+    }
+
+    const created = todoModel.createMany(validTodos);
+
+    res.status(201).json({
+      success: true,
+      data: {
+        created,
+        failed,
+        totalReceived: todos.length,
+        totalCreated: created.length,
+        totalFailed: failed.length,
+      },
+    });
+  } catch (error) {
+    console.error('Error batch creating todos:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_CREATE_ERROR', message: 'Failed to create todos in batch' },
     });
   }
 });
