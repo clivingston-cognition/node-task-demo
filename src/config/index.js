@@ -21,6 +21,10 @@ const config = {
     maxLimit: 100,
   },
 
+  batch: {
+    maxItems: 100,
+  },
+
   cors: {
     origin: process.env.CORS_ORIGIN || '*',
   },
