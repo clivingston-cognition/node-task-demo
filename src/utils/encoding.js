@@ -9,6 +9,7 @@ function encodeTodoForExport(todo) {
     priority: todo.priority || 'medium',
     tags: todo.tags || [],
     due_date: todo.due_date || null,
+    scheduled_at: todo.scheduled_at || null,
   });
 
   const encoded = Buffer.from(payload).toString('base64');
@@ -35,6 +36,7 @@ function decodeTodoFromImport(encodedString) {
       priority: todo.priority || 'medium',
       tags: Array.isArray(todo.tags) ? todo.tags : [],
       due_date: todo.due_date || null,
+      scheduled_at: todo.scheduled_at || null,
     };
   } catch {
     return null;

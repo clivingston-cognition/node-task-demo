@@ -62,6 +62,10 @@ const validateCreateTodo = [
     .optional({ values: 'null' })
     .isISO8601()
     .withMessage('Due date must be a valid ISO 8601 date'),
+  body('scheduled_at')
+    .optional({ values: 'null' })
+    .isISO8601()
+    .withMessage('Scheduled time must be a valid ISO 8601 date-time'),
   handleValidationErrors,
 ];
 
@@ -103,6 +107,10 @@ const validateUpdateTodo = [
     .optional({ values: 'null' })
     .isISO8601()
     .withMessage('Due date must be a valid ISO 8601 date'),
+  body('scheduled_at')
+    .optional({ values: 'null' })
+    .isISO8601()
+    .withMessage('Scheduled time must be a valid ISO 8601 date-time'),
   handleValidationErrors,
 ];
 
@@ -124,7 +132,7 @@ const validateListQuery = [
     .withMessage('Limit must be between 1 and 100'),
   query('sort')
     .optional()
-    .isIn(['created_at', 'updated_at', 'title', 'priority', 'due_date'])
+    .isIn(['created_at', 'updated_at', 'title', 'priority', 'due_date', 'scheduled_at'])
     .withMessage('Invalid sort field'),
   query('order')
     .optional()

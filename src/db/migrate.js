@@ -34,6 +34,15 @@ const MIGRATIONS = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'add_scheduled_at_to_todos',
+    up: `
+      ALTER TABLE todos ADD COLUMN scheduled_at TEXT;
+
+      CREATE INDEX IF NOT EXISTS idx_todos_scheduled_at ON todos(scheduled_at);
+    `,
+  },
 ];
 
 function runMigrations() {
