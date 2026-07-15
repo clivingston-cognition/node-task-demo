@@ -46,15 +46,22 @@ class TodoModel {
       params.push(`%"${filter.tag}"%`);
     }
 
-    const allowedSorts = ['created_at', 'updated_at', 'title', 'priority', 'due_date'];
+    const allowedSorts = ['created_at', 'updated_at', 'title', 'priority', 'due_date', 'scheduled_at'];
     const safeSort = allowedSorts.includes(sort) ? sort : 'created_at';
     const safeOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    // For nullable date columns, always sort NULLs last so scheduled/unscheduled
+    // ordering stays intuitive (e.g. "most urgent" = soonest scheduled first).
+    const nullableDateSorts = ['due_date', 'scheduled_at'];
+    const orderClause = nullableDateSorts.includes(safeSort)
+      ? `(${safeSort} IS NULL), ${safeSort} ${safeOrder}`
+      : `${safeSort} ${safeOrder}`;
 
     const countStmt = db.prepare(`SELECT COUNT(*) as total FROM ${this.tableName} WHERE ${whereClause}`);
     const { total } = countStmt.get(...params);
 
     const selectStmt = db.prepare(
-      `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${safeSort} ${safeOrder} LIMIT ? OFFSET ?`,
+      `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${orderClause} LIMIT ? OFFSET ?`,
     );
     const rows = selectStmt.all(...params, limit, offset);
 
@@ -78,17 +85,17 @@ class TodoModel {
     return this._parseTodo(row);
   }
 
-  create({ title, description = '', priority = 'medium', tags = [], due_date = null }) {
+  create({ title, description = '', priority = 'medium', tags = [], due_date = null, scheduled_at = null }) {
     const db = this._getDb();
     const id = uuidv4();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO ${this.tableName} (id, title, description, completed, priority, tags, due_date, created_at, updated_at)
-      VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)
+      INSERT INTO ${this.tableName} (id, title, description, completed, priority, tags, due_date, scheduled_at, created_at, updated_at)
+      VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, title, description, priority, JSON.stringify(tags), due_date, now, now);
+    stmt.run(id, title, description, priority, JSON.stringify(tags), due_date, scheduled_at, now, now);
     return this.findById(id);
   }
 
@@ -97,7 +104,7 @@ class TodoModel {
     const existing = this.findById(id);
     if (!existing) return null;
 
-    const allowedFields = ['title', 'description', 'completed', 'priority', 'tags', 'due_date'];
+    const allowedFields = ['title', 'description', 'completed', 'priority', 'tags', 'due_date', 'scheduled_at'];
     const setClauses = [];
     const params = [];
 
