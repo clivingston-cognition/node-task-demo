@@ -94,9 +94,9 @@ router.get('/todos/:id', validateTodoId, (req, res) => {
 
 router.post('/todos', validateCreateTodo, (req, res) => {
   try {
-    const { title, description, priority, tags, due_date } = req.body;
+    const { title, description, priority, tags, due_date, scheduled_at } = req.body;
     const normalizedTitle = normalizeInternationalText(title);
-    const todo = todoModel.create({ title: normalizedTitle, description, priority, tags, due_date });
+    const todo = todoModel.create({ title: normalizedTitle, description, priority, tags, due_date, scheduled_at });
 
     res.status(201).json({ success: true, data: todo });
   } catch (error) {
@@ -110,7 +110,7 @@ router.post('/todos', validateCreateTodo, (req, res) => {
 
 router.put('/todos/:id', validateUpdateTodo, (req, res) => {
   try {
-    const { title, description, completed, priority, tags, due_date } = req.body;
+    const { title, description, completed, priority, tags, due_date, scheduled_at } = req.body;
     const todo = todoModel.update(req.params.id, {
       title,
       description,
@@ -118,6 +118,7 @@ router.put('/todos/:id', validateUpdateTodo, (req, res) => {
       priority,
       tags,
       due_date,
+      scheduled_at,
     });
 
     if (!todo) {

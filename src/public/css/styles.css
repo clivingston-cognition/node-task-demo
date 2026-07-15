@@ -450,6 +450,11 @@ body {
   font-weight: 500;
 }
 
+.todo-scheduled {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
 .todo-tag {
   display: inline-block;
   padding: 1px 8px;
