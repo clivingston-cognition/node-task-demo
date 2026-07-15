@@ -26,6 +26,7 @@ const SEED_TODOS = [
     priority: 'high',
     tags: JSON.stringify(['frontend', 'ui']),
     due_date: '2024-01-25',
+    scheduled_at: '2024-01-24T09:00:00.000Z',
   },
   {
     title: 'Write unit tests',
@@ -34,6 +35,7 @@ const SEED_TODOS = [
     priority: 'medium',
     tags: JSON.stringify(['testing', 'quality']),
     due_date: '2024-02-01',
+    scheduled_at: '2024-01-31T13:30:00.000Z',
   },
   {
     title: 'Add input validation',
@@ -42,6 +44,7 @@ const SEED_TODOS = [
     priority: 'medium',
     tags: JSON.stringify(['security', 'backend']),
     due_date: '2024-02-05',
+    scheduled_at: '2024-02-04T15:00:00.000Z',
   },
   {
     title: 'Configure CI/CD pipeline',
@@ -80,8 +83,8 @@ function seedDatabase() {
   }
 
   const insert = db.prepare(`
-    INSERT INTO todos (id, title, description, completed, priority, tags, due_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO todos (id, title, description, completed, priority, tags, due_date, scheduled_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertAll = db.transaction((todos) => {
@@ -94,6 +97,7 @@ function seedDatabase() {
         todo.priority,
         todo.tags,
         todo.due_date,
+        todo.scheduled_at || null,
       );
     }
   });

@@ -139,6 +139,24 @@ describe('POST /api/todos - Create', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  test('should create a todo with a scheduled_at time', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Scheduled task', scheduled_at: '2025-12-31T14:30:00.000Z' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.scheduled_at).toBe('2025-12-31T14:30:00.000Z');
+  });
+
+  test('should fail with invalid scheduled_at format', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Test', scheduled_at: 'not-a-date' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
   test('should fail when tags is not an array', async () => {
     const res = await request(app)
       .post('/api/todos')
@@ -240,6 +258,30 @@ describe('GET /api/todos - Read All', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should sort by urgency (soonest scheduled first, unscheduled last)', async () => {
+    await request(app)
+      .post('/api/todos')
+      .send({ title: 'Urgency later', scheduled_at: '2030-01-02T10:00:00.000Z' });
+    await request(app)
+      .post('/api/todos')
+      .send({ title: 'Urgency sooner', scheduled_at: '2030-01-01T10:00:00.000Z' });
+
+    const res = await request(app).get('/api/todos?sort=urgency&limit=100');
+
+    expect(res.status).toBe(200);
+    const scheduled = res.body.data
+      .map((t) => t.scheduled_at)
+      .filter((s) => s !== null && s !== undefined);
+    const sortedAsc = [...scheduled].sort();
+    expect(scheduled).toEqual(sortedAsc);
+
+    const firstNullIndex = res.body.data.findIndex((t) => !t.scheduled_at);
+    if (firstNullIndex !== -1) {
+      const afterNulls = res.body.data.slice(firstNullIndex);
+      expect(afterNulls.every((t) => !t.scheduled_at)).toBe(true);
+    }
   });
 });
 
@@ -345,6 +387,15 @@ describe('PUT /api/todos/:id - Update', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.due_date).toBe('2025-06-15');
+  });
+
+  test('should update scheduled_at', async () => {
+    const res = await request(app)
+      .put(`/api/todos/${todoId}`)
+      .send({ scheduled_at: '2025-06-15T09:00:00.000Z' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.scheduled_at).toBe('2025-06-15T09:00:00.000Z');
   });
 
   test('should update multiple fields at once', async () => {
