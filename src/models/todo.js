@@ -19,6 +19,28 @@ class TodoModel {
     };
   }
 
+  // Builds a safe ORDER BY clause. Both arguments are pre-validated against
+  // fixed allowlists by the caller, so no user input reaches the SQL string.
+  _buildOrderClause(safeSort, safeOrder) {
+    if (safeSort === 'urgency') {
+      // Most urgent first: incomplete before completed, then by priority
+      // weight, then by soonest scheduled time (nulls last).
+      return [
+        'completed ASC',
+        "CASE priority WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END ASC",
+        'scheduled_at IS NULL ASC',
+        'scheduled_at ASC',
+      ].join(', ');
+    }
+
+    if (safeSort === 'scheduled_at') {
+      // Keep todos without a scheduled time at the end regardless of order.
+      return `scheduled_at IS NULL ASC, scheduled_at ${safeOrder}`;
+    }
+
+    return `${safeSort} ${safeOrder}`;
+  }
+
   findAll({ page = 1, limit = 20, sort = 'created_at', order = 'DESC', filter = {} } = {}) {
     const db = this._getDb();
     const offset = (page - 1) * limit;
@@ -46,15 +68,16 @@ class TodoModel {
       params.push(`%"${filter.tag}"%`);
     }
 
-    const allowedSorts = ['created_at', 'updated_at', 'title', 'priority', 'due_date'];
+    const allowedSorts = ['created_at', 'updated_at', 'title', 'priority', 'due_date', 'scheduled_at', 'urgency'];
     const safeSort = allowedSorts.includes(sort) ? sort : 'created_at';
     const safeOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+    const orderClause = this._buildOrderClause(safeSort, safeOrder);
 
     const countStmt = db.prepare(`SELECT COUNT(*) as total FROM ${this.tableName} WHERE ${whereClause}`);
     const { total } = countStmt.get(...params);
 
     const selectStmt = db.prepare(
-      `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${safeSort} ${safeOrder} LIMIT ? OFFSET ?`,
+      `SELECT * FROM ${this.tableName} WHERE ${whereClause} ORDER BY ${orderClause} LIMIT ? OFFSET ?`,
     );
     const rows = selectStmt.all(...params, limit, offset);
 
@@ -78,17 +101,17 @@ class TodoModel {
     return this._parseTodo(row);
   }
 
-  create({ title, description = '', priority = 'medium', tags = [], due_date = null }) {
+  create({ title, description = '', priority = 'medium', tags = [], due_date = null, scheduled_at = null }) {
     const db = this._getDb();
     const id = uuidv4();
     const now = new Date().toISOString();
 
     const stmt = db.prepare(`
-      INSERT INTO ${this.tableName} (id, title, description, completed, priority, tags, due_date, created_at, updated_at)
-      VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)
+      INSERT INTO ${this.tableName} (id, title, description, completed, priority, tags, due_date, scheduled_at, created_at, updated_at)
+      VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, title, description, priority, JSON.stringify(tags), due_date, now, now);
+    stmt.run(id, title, description, priority, JSON.stringify(tags), due_date, scheduled_at, now, now);
     return this.findById(id);
   }
 
@@ -97,7 +120,7 @@ class TodoModel {
     const existing = this.findById(id);
     if (!existing) return null;
 
-    const allowedFields = ['title', 'description', 'completed', 'priority', 'tags', 'due_date'];
+    const allowedFields = ['title', 'description', 'completed', 'priority', 'tags', 'due_date', 'scheduled_at'];
     const setClauses = [];
     const params = [];
 

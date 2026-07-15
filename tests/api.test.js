@@ -139,6 +139,33 @@ describe('POST /api/todos - Create', () => {
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
+  test('should create a todo with a scheduled_at time', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Scheduled task', scheduled_at: '2025-12-31T14:30:00.000Z' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.scheduled_at).toBe('2025-12-31T14:30:00.000Z');
+  });
+
+  test('should default scheduled_at to null when omitted', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'No schedule task' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.scheduled_at).toBeNull();
+  });
+
+  test('should fail with invalid scheduled_at format', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Test', scheduled_at: 'not-a-datetime' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
   test('should fail when tags is not an array', async () => {
     const res = await request(app)
       .post('/api/todos')
@@ -240,6 +267,35 @@ describe('GET /api/todos - Read All', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should sort by scheduled_at ascending with nulls last', async () => {
+    await request(app).post('/api/todos').send({ title: 'Sched later', scheduled_at: '2030-05-02T10:00:00.000Z' });
+    await request(app).post('/api/todos').send({ title: 'Sched sooner', scheduled_at: '2030-05-01T10:00:00.000Z' });
+
+    const res = await request(app).get('/api/todos?sort=scheduled_at&order=ASC&limit=100');
+
+    expect(res.status).toBe(200);
+    const scheduled = res.body.data
+      .map((t) => t.scheduled_at)
+      .filter((v) => v !== null);
+    const sorted = [...scheduled].sort();
+    expect(scheduled).toEqual(sorted);
+
+    // Todos with a scheduled time must all appear before those without.
+    const firstNullIndex = res.body.data.findIndex((t) => t.scheduled_at === null);
+    if (firstNullIndex !== -1) {
+      const afterFirstNull = res.body.data.slice(firstNullIndex);
+      expect(afterFirstNull.every((t) => t.scheduled_at === null)).toBe(true);
+    }
+  });
+
+  test('should accept the urgency sort', async () => {
+    const res = await request(app).get('/api/todos?sort=urgency');
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
   });
 });
 
@@ -345,6 +401,33 @@ describe('PUT /api/todos/:id - Update', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.data.due_date).toBe('2025-06-15');
+  });
+
+  test('should update scheduled_at', async () => {
+    const res = await request(app)
+      .put(`/api/todos/${todoId}`)
+      .send({ scheduled_at: '2025-06-15T08:00:00.000Z' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.scheduled_at).toBe('2025-06-15T08:00:00.000Z');
+  });
+
+  test('should clear scheduled_at when set to null', async () => {
+    const res = await request(app)
+      .put(`/api/todos/${todoId}`)
+      .send({ scheduled_at: null });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.scheduled_at).toBeNull();
+  });
+
+  test('should return 400 for invalid scheduled_at on update', async () => {
+    const res = await request(app)
+      .put(`/api/todos/${todoId}`)
+      .send({ scheduled_at: 'nope' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
   });
 
   test('should update multiple fields at once', async () => {

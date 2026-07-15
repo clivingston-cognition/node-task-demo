@@ -46,6 +46,7 @@
                 <option value="urgent">Urgent</option>
               </select>
               <input type="date" id="todoDueDate" class="input-date" placeholder="Due date">
+              <input type="datetime-local" id="todoScheduledAt" class="input-date" title="Scheduled time" aria-label="Scheduled time">
               <input type="text" id="todoTags" class="input-tags" placeholder="Tags (comma-separated)">
             </div>
           </div>
@@ -60,6 +61,8 @@
         </div>
         <div class="sort-group">
           <select id="sortField" class="select-sort">
+            <option value="urgency">Most Urgent</option>
+            <option value="scheduled_at">Scheduled Time</option>
             <option value="created_at">Created</option>
             <option value="updated_at">Updated</option>
             <option value="title">Title</option>
@@ -113,6 +116,10 @@
             <div>
               <label for="editDueDate">Due Date</label>
               <input type="date" id="editDueDate" class="input-date">
+            </div>
+            <div>
+              <label for="editScheduledAt">Scheduled Time</label>
+              <input type="datetime-local" id="editScheduledAt" class="input-date">
             </div>
           </div>
           <div class="form-group">

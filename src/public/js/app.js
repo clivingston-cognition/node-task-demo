@@ -3,7 +3,7 @@
 
   const API_BASE = '/api/todos';
   let currentFilter = 'all';
-  let currentSort = 'created_at';
+  let currentSort = 'urgency';
   let currentOrder = 'DESC';
   let currentPage = 1;
   let searchTimeout = null;
@@ -147,6 +147,10 @@
       var dueDateHtml = todo.due_date
         ? '<span class="todo-due ' + (isOverdue ? 'overdue' : '') + '">' + formatDate(todo.due_date) + '</span>'
         : '';
+      var isPastSchedule = todo.scheduled_at && !todo.completed && new Date(todo.scheduled_at) < new Date();
+      var scheduledHtml = todo.scheduled_at
+        ? '<span class="todo-scheduled ' + (isPastSchedule ? 'overdue' : '') + '" title="Scheduled time">&#128337; ' + escapeHtml(formatDateTime(todo.scheduled_at)) + '</span>'
+        : '';
 
       return '<div class="todo-item ' + (todo.completed ? 'completed' : '') + '" data-id="' + todo.id + '">' +
         '<input type="checkbox" class="todo-checkbox" ' + (todo.completed ? 'checked' : '') + ' data-action="toggle">' +
@@ -155,6 +159,7 @@
         (todo.description ? '<div class="todo-description">' + escapeHtml(todo.description) + '</div>' : '') +
         '<div class="todo-meta">' +
         '<span class="priority-badge priority-' + todo.priority + '">' + todo.priority + '</span>' +
+        scheduledHtml +
         dueDateHtml +
         tagsHtml +
         '</div>' +
@@ -208,6 +213,7 @@
     var tagsRaw = document.getElementById('todoTags').value.trim();
     var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
     var dueDate = document.getElementById('todoDueDate').value || null;
+    var scheduledAt = toIsoOrNull(document.getElementById('todoScheduledAt').value);
 
     var body = {
       title: title,
@@ -216,6 +222,7 @@
       tags: tags,
     };
     if (dueDate) body.due_date = dueDate;
+    if (scheduledAt) body.scheduled_at = scheduledAt;
 
     try {
       await apiRequest(API_BASE, {
@@ -243,6 +250,7 @@
       document.getElementById('editDescription').value = todo.description || '';
       document.getElementById('editPriority').value = todo.priority;
       document.getElementById('editDueDate').value = todo.due_date ? todo.due_date.split('T')[0] : '';
+      document.getElementById('editScheduledAt').value = toLocalInputValue(todo.scheduled_at);
       document.getElementById('editTags').value = (todo.tags || []).join(', ');
 
       var modal = document.getElementById('editModal');
@@ -259,12 +267,14 @@
     var tagsRaw = document.getElementById('editTags').value.trim();
     var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
     var dueDate = document.getElementById('editDueDate').value || null;
+    var scheduledAt = toIsoOrNull(document.getElementById('editScheduledAt').value);
 
     var body = {
       title: document.getElementById('editTitle').value.trim(),
       description: document.getElementById('editDescription').value.trim(),
       priority: document.getElementById('editPriority').value,
       tags: tags,
+      scheduled_at: scheduledAt,
     };
     if (dueDate) body.due_date = dueDate;
 
@@ -342,6 +352,32 @@
   function formatDate(dateStr) {
     var date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function formatDateTime(dateStr) {
+    var date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '';
+    return date.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  }
+
+  // Convert a datetime-local input value (local time) into a UTC ISO 8601 string.
+  function toIsoOrNull(localValue) {
+    if (!localValue) return null;
+    var date = new Date(localValue);
+    if (isNaN(date.getTime())) return null;
+    return date.toISOString();
+  }
+
+  // Convert a stored ISO 8601 string back into a datetime-local input value.
+  function toLocalInputValue(iso) {
+    if (!iso) return '';
+    var date = new Date(iso);
+    if (isNaN(date.getTime())) return '';
+    function pad(n) { return String(n).padStart(2, '0'); }
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate()) +
+      'T' + pad(date.getHours()) + ':' + pad(date.getMinutes());
   }
 
   function showToast(message, type) {
