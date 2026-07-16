@@ -618,3 +618,78 @@ describe('Edge Cases & Security', () => {
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('Scheduled time & urgency sorting', () => {
+  test('should create a todo with a scheduled_at date-time', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Scheduled task', scheduled_at: '2026-07-16T14:30' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.scheduled_at).toBe('2026-07-16T14:30');
+  });
+
+  test('should default scheduled_at to null when omitted', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'No schedule task' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.scheduled_at).toBeNull();
+  });
+
+  test('should fail with invalid scheduled_at format', async () => {
+    const res = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Bad schedule', scheduled_at: 'not-a-datetime' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should update scheduled_at', async () => {
+    const created = await request(app)
+      .post('/api/todos')
+      .send({ title: 'Update schedule task' });
+
+    const res = await request(app)
+      .put(`/api/todos/${created.body.data.id}`)
+      .send({ scheduled_at: '2027-01-01T08:00' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.scheduled_at).toBe('2027-01-01T08:00');
+  });
+
+  test('should accept scheduled_at as a valid sort field', async () => {
+    const res = await request(app).get('/api/todos?sort=scheduled_at&order=ASC');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  test('should sort by urgency with soonest scheduled first and nulls last', async () => {
+    await request(app).delete('/api/todos'); // clear any completed noise
+
+    await request(app)
+      .post('/api/todos')
+      .send({ title: 'Urgency later', scheduled_at: '2099-01-01T00:00' });
+    await request(app)
+      .post('/api/todos')
+      .send({ title: 'Urgency sooner', scheduled_at: '2028-01-01T00:00' });
+
+    const res = await request(app).get('/api/todos?sort=urgency&order=ASC&limit=100');
+    expect(res.status).toBe(200);
+
+    const scheduled = res.body.data
+      .map((t) => t.scheduled_at)
+      .filter((s) => s !== null);
+    const sortedAsc = [...scheduled].sort();
+    expect(scheduled).toEqual(sortedAsc);
+
+    // Any todos without a scheduled_at must come after those that have one.
+    const firstNullIndex = res.body.data.findIndex((t) => t.scheduled_at === null);
+    if (firstNullIndex !== -1) {
+      const tail = res.body.data.slice(firstNullIndex);
+      tail.forEach((t) => expect(t.scheduled_at).toBeNull());
+    }
+  });
+});

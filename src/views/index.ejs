@@ -46,6 +46,7 @@
                 <option value="urgent">Urgent</option>
               </select>
               <input type="date" id="todoDueDate" class="input-date" placeholder="Due date">
+              <input type="datetime-local" id="todoScheduledAt" class="input-datetime" title="Scheduled time" aria-label="Scheduled time">
               <input type="text" id="todoTags" class="input-tags" placeholder="Tags (comma-separated)">
             </div>
           </div>
@@ -65,6 +66,8 @@
             <option value="title">Title</option>
             <option value="priority">Priority</option>
             <option value="due_date">Due Date</option>
+            <option value="scheduled_at">Scheduled Time</option>
+            <option value="urgency">Most Urgent</option>
           </select>
           <button class="btn btn-sort" id="sortOrder" data-order="DESC" title="Sort order">&#8595;</button>
         </div>
@@ -113,6 +116,10 @@
             <div>
               <label for="editDueDate">Due Date</label>
               <input type="date" id="editDueDate" class="input-date">
+            </div>
+            <div>
+              <label for="editScheduledAt">Scheduled Time</label>
+              <input type="datetime-local" id="editScheduledAt" class="input-datetime">
             </div>
           </div>
           <div class="form-group">
