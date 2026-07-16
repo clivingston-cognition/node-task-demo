@@ -122,6 +122,7 @@ body {
 .input-description,
 .input-search,
 .input-date,
+.input-datetime,
 .input-tags,
 .select-priority,
 .select-sort {
@@ -139,6 +140,7 @@ body {
 .input-description:focus,
 .input-search:focus,
 .input-date:focus,
+.input-datetime:focus,
 .input-tags:focus,
 .select-priority:focus,
 .select-sort:focus {
@@ -450,6 +452,11 @@ body {
   font-weight: 500;
 }
 
+.todo-scheduled {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
 .todo-tag {
   display: inline-block;
   padding: 1px 8px;
@@ -590,7 +597,8 @@ body {
 }
 
 .form-row-inline .select-priority,
-.form-row-inline .input-date {
+.form-row-inline .input-date,
+.form-row-inline .input-datetime {
   width: 100%;
 }
 
@@ -715,6 +723,7 @@ body {
 .input-description:focus-visible,
 .input-search:focus-visible,
 .input-date:focus-visible,
+.input-datetime:focus-visible,
 .input-tags:focus-visible,
 .select-priority:focus-visible,
 .select-sort:focus-visible {

@@ -45,6 +45,13 @@
 
     sortField.addEventListener('change', function () {
       currentSort = sortField.value;
+      // "Most Urgent" is only meaningful ascending (soonest scheduled first),
+      // so default the order to ascending when it is selected.
+      if (currentSort === 'urgency') {
+        currentOrder = 'ASC';
+        sortOrderBtn.dataset.order = 'ASC';
+        sortOrderBtn.innerHTML = '&#8593;';
+      }
       loadTodos();
     });
 
@@ -147,6 +154,9 @@
       var dueDateHtml = todo.due_date
         ? '<span class="todo-due ' + (isOverdue ? 'overdue' : '') + '">' + formatDate(todo.due_date) + '</span>'
         : '';
+      var scheduledHtml = todo.scheduled_at
+        ? '<span class="todo-scheduled" title="Scheduled time">&#128337; ' + escapeHtml(formatDateTime(todo.scheduled_at)) + '</span>'
+        : '';
 
       return '<div class="todo-item ' + (todo.completed ? 'completed' : '') + '" data-id="' + todo.id + '">' +
         '<input type="checkbox" class="todo-checkbox" ' + (todo.completed ? 'checked' : '') + ' data-action="toggle">' +
@@ -156,6 +166,7 @@
         '<div class="todo-meta">' +
         '<span class="priority-badge priority-' + todo.priority + '">' + todo.priority + '</span>' +
         dueDateHtml +
+        scheduledHtml +
         tagsHtml +
         '</div>' +
         '</div>' +
@@ -208,6 +219,7 @@
     var tagsRaw = document.getElementById('todoTags').value.trim();
     var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
     var dueDate = document.getElementById('todoDueDate').value || null;
+    var scheduledAt = document.getElementById('todoScheduledAt').value || null;
 
     var body = {
       title: title,
@@ -216,6 +228,7 @@
       tags: tags,
     };
     if (dueDate) body.due_date = dueDate;
+    if (scheduledAt) body.scheduled_at = scheduledAt;
 
     try {
       await apiRequest(API_BASE, {
@@ -243,6 +256,7 @@
       document.getElementById('editDescription').value = todo.description || '';
       document.getElementById('editPriority').value = todo.priority;
       document.getElementById('editDueDate').value = todo.due_date ? todo.due_date.split('T')[0] : '';
+      document.getElementById('editScheduledAt').value = todo.scheduled_at ? todo.scheduled_at.slice(0, 16) : '';
       document.getElementById('editTags').value = (todo.tags || []).join(', ');
 
       var modal = document.getElementById('editModal');
@@ -259,6 +273,7 @@
     var tagsRaw = document.getElementById('editTags').value.trim();
     var tags = tagsRaw ? tagsRaw.split(',').map(function (t) { return t.trim(); }).filter(Boolean) : [];
     var dueDate = document.getElementById('editDueDate').value || null;
+    var scheduledAt = document.getElementById('editScheduledAt').value || null;
 
     var body = {
       title: document.getElementById('editTitle').value.trim(),
@@ -267,6 +282,7 @@
       tags: tags,
     };
     if (dueDate) body.due_date = dueDate;
+    if (scheduledAt) body.scheduled_at = scheduledAt;
 
     try {
       await apiRequest(API_BASE + '/' + id, {
@@ -342,6 +358,14 @@
   function formatDate(dateStr) {
     var date = new Date(dateStr);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function formatDateTime(dateStr) {
+    var date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleString('en-US', {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
   }
 
   function showToast(message, type) {

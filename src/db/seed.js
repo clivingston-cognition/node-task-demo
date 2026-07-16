@@ -10,6 +10,7 @@ const SEED_TODOS = [
     priority: 'high',
     tags: JSON.stringify(['setup', 'devops']),
     due_date: '2024-01-15',
+    scheduled_at: '2024-01-14T09:00',
   },
   {
     title: 'Implement CRUD API endpoints',
@@ -18,6 +19,7 @@ const SEED_TODOS = [
     priority: 'urgent',
     tags: JSON.stringify(['backend', 'api']),
     due_date: '2024-01-20',
+    scheduled_at: '2024-01-18T13:30',
   },
   {
     title: 'Build frontend UI',
@@ -26,6 +28,7 @@ const SEED_TODOS = [
     priority: 'high',
     tags: JSON.stringify(['frontend', 'ui']),
     due_date: '2024-01-25',
+    scheduled_at: '2026-08-01T10:00',
   },
   {
     title: 'Write unit tests',
@@ -34,6 +37,7 @@ const SEED_TODOS = [
     priority: 'medium',
     tags: JSON.stringify(['testing', 'quality']),
     due_date: '2024-02-01',
+    scheduled_at: '2026-07-20T15:45',
   },
   {
     title: 'Add input validation',
@@ -42,6 +46,7 @@ const SEED_TODOS = [
     priority: 'medium',
     tags: JSON.stringify(['security', 'backend']),
     due_date: '2024-02-05',
+    scheduled_at: null,
   },
   {
     title: 'Configure CI/CD pipeline',
@@ -50,6 +55,7 @@ const SEED_TODOS = [
     priority: 'low',
     tags: JSON.stringify(['devops', 'automation']),
     due_date: '2024-02-10',
+    scheduled_at: '2026-07-18T11:15',
   },
   {
     title: 'Review security best practices',
@@ -58,6 +64,7 @@ const SEED_TODOS = [
     priority: 'high',
     tags: JSON.stringify(['security', 'review']),
     due_date: null,
+    scheduled_at: null,
   },
   {
     title: 'Write API documentation',
@@ -66,6 +73,7 @@ const SEED_TODOS = [
     priority: 'low',
     tags: JSON.stringify(['documentation']),
     due_date: '2024-03-01',
+    scheduled_at: '2026-09-10T08:30',
   },
 ];
 
@@ -80,8 +88,8 @@ function seedDatabase() {
   }
 
   const insert = db.prepare(`
-    INSERT INTO todos (id, title, description, completed, priority, tags, due_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO todos (id, title, description, completed, priority, tags, due_date, scheduled_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertAll = db.transaction((todos) => {
@@ -94,6 +102,7 @@ function seedDatabase() {
         todo.priority,
         todo.tags,
         todo.due_date,
+        todo.scheduled_at,
       );
     }
   });
