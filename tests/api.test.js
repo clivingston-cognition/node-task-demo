@@ -158,6 +158,146 @@ describe('POST /api/todos - Create', () => {
   });
 });
 
+describe('POST /api/todos/batch - Batch Create', () => {
+  test('should create multiple todos at once', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'Batch one' },
+          { title: 'Batch two' },
+          { title: 'Batch three' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.meta.count).toBe(3);
+
+    res.body.data.forEach((todo, index) => {
+      expect(todo.id).toBeDefined();
+      expect(todo.created_at).toBeDefined();
+      expect(todo.updated_at).toBeDefined();
+      expect(todo).toMatchObject({
+        title: ['Batch one', 'Batch two', 'Batch three'][index],
+        description: '',
+        completed: false,
+        priority: 'medium',
+        tags: [],
+      });
+    });
+  });
+
+  test('should persist all fields for each todo', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          {
+            title: 'Batch full',
+            description: 'A fully detailed batch item',
+            priority: 'urgent',
+            tags: ['batch', 'important'],
+            due_date: '2025-12-31',
+          },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data[0]).toMatchObject({
+      title: 'Batch full',
+      description: 'A fully detailed batch item',
+      completed: false,
+      priority: 'urgent',
+      tags: ['batch', 'important'],
+      due_date: '2025-12-31',
+    });
+
+    const fetched = await request(app).get(`/api/todos/${res.body.data[0].id}`);
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.data.priority).toBe('urgent');
+  });
+
+  test('should fail with an empty todos array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when todos is missing', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when todos is not an array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: 'not-an-array' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when one item has an empty title', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Valid item' }, { title: '' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should fail when one item has an invalid priority', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Valid item' }, { title: 'Bad', priority: 'nope' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should not create any todos when one item is invalid', async () => {
+    const before = await request(app).get('/api/todos/stats');
+
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          { title: 'atomicity-canary-should-not-exist' },
+          { title: 'Bad item', priority: 'invalid' },
+        ],
+      });
+
+    expect(res.status).toBe(400);
+
+    const after = await request(app).get('/api/todos/stats');
+    expect(after.body.data.total).toBe(before.body.data.total);
+
+    const search = await request(app).get('/api/todos?search=atomicity-canary-should-not-exist');
+    expect(search.body.data).toHaveLength(0);
+  });
+
+  test('should fail when the batch exceeds the maximum size', async () => {
+    const todos = Array.from({ length: 101 }, (_, i) => ({ title: `Too many ${i}` }));
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
 describe('GET /api/todos - Read All', () => {
   test('should return a list of todos with pagination', async () => {
     const res = await request(app).get('/api/todos');

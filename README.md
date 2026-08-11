@@ -185,6 +185,55 @@ Content-Type: application/json
 }
 ```
 
+#### Batch Create Todos
+
+Creates up to 100 todos in a single atomic transaction — if any item fails
+validation, no todos are created.
+
+```
+POST /api/todos/batch
+Content-Type: application/json
+
+{
+  "todos": [
+    { "title": "Buy groceries", "priority": "high", "tags": ["shopping"] },
+    { "title": "Write report", "description": "Q1 summary", "due_date": "2025-01-15" }
+  ]
+}
+```
+
+Response `201`:
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "3f1c...",
+      "title": "Buy groceries",
+      "description": "",
+      "completed": false,
+      "priority": "high",
+      "tags": ["shopping"],
+      "due_date": null,
+      "created_at": "2025-01-10T12:00:00.000Z",
+      "updated_at": "2025-01-10T12:00:00.000Z"
+    },
+    {
+      "id": "8ba2...",
+      "title": "Write report",
+      "description": "Q1 summary",
+      "completed": false,
+      "priority": "medium",
+      "tags": [],
+      "due_date": "2025-01-15",
+      "created_at": "2025-01-10T12:00:00.000Z",
+      "updated_at": "2025-01-10T12:00:00.000Z"
+    }
+  ],
+  "meta": { "count": 2 }
+}
+```
+
 #### Update Todo
 ```
 PUT /api/todos/:id
