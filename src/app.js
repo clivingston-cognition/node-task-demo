@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 
 const config = require('./config');
 const apiRoutes = require('./routes/api');
+const healthRoutes = require('./routes/health');
 const viewRoutes = require('./routes/views');
 const { notFoundHandler, globalErrorHandler } = require('./middleware/errorHandler');
 const { initializeDatabase } = require('./db/init');
@@ -56,6 +57,8 @@ const limiter = rateLimit({
     },
   },
 });
+
+app.use('/api', healthRoutes);
 
 if (config.env === 'production') {
   app.use('/api/', limiter);

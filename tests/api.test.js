@@ -25,6 +25,19 @@ describe('Health & Misc', () => {
     expect(res.text).toContain('Task Manager');
   });
 
+  test('GET /api/health should report healthy status', async () => {
+    const res = await request(app).get('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toMatchObject({
+      status: 'ok',
+      checks: { database: { status: 'up' } },
+    });
+    expect(typeof res.body.data.uptime).toBe('number');
+    expect(typeof res.body.data.version).toBe('string');
+    expect(new Date(res.body.data.timestamp).toString()).not.toBe('Invalid Date');
+  });
+
   test('GET /api/nonexistent should return 404', async () => {
     const res = await request(app).get('/api/nonexistent');
     expect(res.status).toBe(404);
