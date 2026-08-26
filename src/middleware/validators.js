@@ -65,6 +65,42 @@ const validateCreateTodo = [
   handleValidationErrors,
 ];
 
+const validateCreateTodosBatch = [
+  body('todos')
+    .isArray({ min: 1, max: 50 })
+    .withMessage('todos must be an array of 1 to 50 items'),
+  body('todos.*.title')
+    .trim()
+    .notEmpty()
+    .withMessage('Title is required')
+    .isLength({ min: 1, max: 255 })
+    .withMessage('Title must be between 1 and 255 characters'),
+  body('todos.*.description')
+    .optional()
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('Description must not exceed 2000 characters'),
+  body('todos.*.priority')
+    .optional()
+    .isIn(['low', 'medium', 'high', 'urgent'])
+    .withMessage('Priority must be one of: low, medium, high, urgent'),
+  body('todos.*.tags')
+    .optional()
+    .isArray()
+    .withMessage('Tags must be an array'),
+  body('todos.*.tags.*')
+    .optional()
+    .isString()
+    .trim()
+    .isLength({ min: 1, max: 50 })
+    .withMessage('Each tag must be between 1 and 50 characters'),
+  body('todos.*.due_date')
+    .optional({ values: 'null' })
+    .isISO8601()
+    .withMessage('Due date must be a valid ISO 8601 date'),
+  handleValidationErrors,
+];
+
 const validateUpdateTodo = [
   param('id')
     .isUUID()
@@ -148,6 +184,7 @@ const validateListQuery = [
 
 module.exports = {
   validateCreateTodo,
+  validateCreateTodosBatch,
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,

@@ -185,6 +185,23 @@ Content-Type: application/json
 }
 ```
 
+#### Batch Create Todos
+```
+POST /api/todos/batch
+Content-Type: application/json
+
+{
+  "todos": [
+    { "title": "Buy groceries", "priority": "high", "tags": ["shopping"] },
+    { "title": "Book flights", "description": "Return trip", "due_date": "2025-02-01" }
+  ]
+}
+```
+Accepts between 1 and 50 items. The inserts run in a single transaction, so the
+request is all-or-nothing: if any item fails validation or insertion, no todos
+are created. On success the response is `201` with the created todos in `data`
+and the count in `meta.created`.
+
 #### Update Todo
 ```
 PUT /api/todos/:id
