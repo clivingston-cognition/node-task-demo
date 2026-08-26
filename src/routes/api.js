@@ -2,6 +2,7 @@ const express = require('express');
 const todoModel = require('../models/todo');
 const {
   validateCreateTodo,
+  validateCreateTodosBatch,
   validateUpdateTodo,
   validateTodoId,
   validateListQuery,
@@ -215,6 +216,32 @@ router.get('/todos/:id/export', validateTodoId, (req, res) => {
     res.status(500).json({
       success: false,
       error: { code: 'EXPORT_ERROR', message: 'Failed to export todo' },
+    });
+  }
+});
+
+router.post('/todos/batch', validateCreateTodosBatch, (req, res) => {
+  try {
+    const todos = req.body.todos.map(({ title, description, priority, tags, due_date }) => ({
+      title: normalizeInternationalText(title),
+      description,
+      priority,
+      tags,
+      due_date,
+    }));
+
+    const createdTodos = todoModel.createMany(todos);
+
+    res.status(201).json({
+      success: true,
+      data: createdTodos,
+      meta: { created: createdTodos.length },
+    });
+  } catch (error) {
+    console.error('Error creating todos:', error);
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_CREATE_ERROR', message: 'Failed to create todos' },
     });
   }
 });
