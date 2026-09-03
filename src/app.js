@@ -36,6 +36,7 @@ app.use(helmet({
 
 app.use(cors(config.cors));
 app.use(compression());
+app.use('/api/todos/batch', express.json({ limit: '1mb' }));
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
