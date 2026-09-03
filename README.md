@@ -17,6 +17,7 @@ A sophisticated Task Manager application built with **Node.js 24** and **Express
 ## Features
 
 - Full CRUD operations for TODO items
+- Atomic batch creation (up to 100 todos per request)
 - Priority levels: low, medium, high, urgent
 - Tags, due dates, and descriptions
 - Search and filtering (by status, priority, tags)
@@ -119,6 +120,7 @@ npm run test:watch
 Tests use a **separate test database** (`data/todo-test.db`) that is automatically created and cleaned up. The test suite covers:
 
 - **Create (POST)**: Valid creation, all fields, validation errors (missing title, invalid priority, bad dates, etc.)
+- **Batch Create (POST)**: Multi-item creation, empty/non-array rejection, atomicity on invalid items, max item cap
 - **Read All (GET)**: Pagination, filtering by status/priority, search, sorting, validation of query params
 - **Read One (GET)**: Fetch by ID, 404 for missing, 400 for invalid UUID
 - **Update (PUT)**: Individual field updates, multi-field updates, timestamp changes, validation errors
@@ -184,6 +186,36 @@ Content-Type: application/json
   "due_date": "2025-01-15"
 }
 ```
+
+#### Batch Create Todos
+
+Creates up to **100** todos in a single SQLite transaction. The request is all-or-nothing: if any item fails validation, no todos are created. Each item accepts the same fields as **Create Todo**. The JSON body limit for this endpoint is raised to 1 MB (other endpoints remain at 10 KB).
+
+```
+POST /api/todos/batch
+Content-Type: application/json
+
+{
+  "todos": [
+    { "title": "Buy groceries", "priority": "high", "tags": ["shopping"] },
+    { "title": "Call the bank", "due_date": "2025-01-15" }
+  ]
+}
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "success": true,
+  "data": [
+    { "id": "...", "title": "Buy groceries", "description": "", "completed": false, "priority": "high", "tags": ["shopping"], "due_date": null, "created_at": "...", "updated_at": "..." },
+    { "id": "...", "title": "Call the bank", "description": "", "completed": false, "priority": "medium", "tags": [], "due_date": "2025-01-15", "created_at": "...", "updated_at": "..." }
+  ]
+}
+```
+
+Validation failures (empty array, non-array `todos`, more than 100 items, or any invalid item) return `400` with `error.code = "VALIDATION_ERROR"`.
 
 #### Update Todo
 ```
