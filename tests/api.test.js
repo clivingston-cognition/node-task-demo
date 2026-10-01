@@ -1,6 +1,7 @@
 const request = require('supertest');
 const fs = require('fs');
 const app = require('../src/app');
+const todoModel = require('../src/models/todo');
 const { closeConnection, getDbPath } = require('../src/db/connection');
 
 beforeAll(() => {
@@ -155,6 +156,119 @@ describe('POST /api/todos - Create', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+});
+
+describe('POST /api/todos/batch - Batch Create', () => {
+  test('should create multiple todos with defaults and support reading an item', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({
+        todos: [
+          {
+            title: 'Batch todo with all fields',
+            description: 'A batch-created todo',
+            priority: 'high',
+            tags: ['a', 'b'],
+            due_date: '2030-06-15',
+          },
+          { title: 'Batch title-only todo two' },
+          { title: 'Batch title-only todo three' },
+        ],
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.count).toBe(3);
+    expect(res.body.data).toHaveLength(3);
+    expect(res.body.data[0]).toMatchObject({
+      title: 'Batch todo with all fields',
+      description: 'A batch-created todo',
+      priority: 'high',
+      tags: ['a', 'b'],
+      due_date: '2030-06-15',
+    });
+    expect(res.body.data[1]).toMatchObject({
+      title: 'Batch title-only todo two',
+      description: '',
+      priority: 'medium',
+      tags: [],
+      completed: false,
+    });
+    res.body.data.forEach((todo) => expect(todo.id).toBeDefined());
+
+    const readRes = await request(app).get(`/api/todos/${res.body.data[0].id}`);
+    expect(readRes.status).toBe(200);
+    expect(readRes.body.data.id).toBe(res.body.data[0].id);
+  });
+
+  test('should reject an empty todos array', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test.each([
+    ['a non-array todos value', { todos: 'nope' }],
+    ['a missing todos value', {}],
+  ])('should reject %s', async (_description, body) => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send(body);
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should reject batches larger than 100 todos', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: Array.from({ length: 101 }, (_value, index) => ({ title: `t${index}` })) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+  });
+
+  test('should report the indexed path for an invalid item field', async () => {
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: 'Valid batch todo' }, { title: 'Invalid priority todo', priority: 'bogus' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    expect(res.body.error.details.some(({ field }) => field === 'todos[1].priority')).toBe(true);
+  });
+
+  test('should not partially create todos when validation fails', async () => {
+    const beforeStats = await request(app).get('/api/todos/stats');
+    const uniqueTitle = `batch-atomic-${Date.now()}-${Math.random()}`;
+    const res = await request(app)
+      .post('/api/todos/batch')
+      .send({ todos: [{ title: uniqueTitle }, { title: '' }] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe('VALIDATION_ERROR');
+
+    const afterStats = await request(app).get('/api/todos/stats');
+    expect(afterStats.body.data.total).toBe(beforeStats.body.data.total);
+
+    const searchRes = await request(app).get('/api/todos').query({ search: uniqueTitle });
+    expect(searchRes.body.data).toHaveLength(0);
+  });
+
+  test('should roll back all inserts when a model-level insert fails', async () => {
+    const uniqueTitle = `ok-${Date.now()}-${Math.random()}`;
+
+    expect(() => todoModel.createBatch([
+      { title: uniqueTitle },
+      { title: null },
+    ])).toThrow();
+
+    const searchRes = await request(app).get('/api/todos').query({ search: uniqueTitle });
+    expect(searchRes.body.data).toHaveLength(0);
   });
 });
 
