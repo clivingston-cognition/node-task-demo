@@ -1,6 +1,7 @@
 const request = require('supertest');
 const fs = require('fs');
 const app = require('../src/app');
+const todoModel = require('../src/models/todo');
 const { closeConnection, getDbPath } = require('../src/db/connection');
 
 beforeAll(() => {
@@ -259,7 +260,6 @@ describe('POST /api/todos/batch - Batch Create', () => {
   });
 
   test('should roll back all inserts when a model-level insert fails', async () => {
-    const todoModel = require('../src/models/todo');
     const uniqueTitle = `ok-${Date.now()}-${Math.random()}`;
 
     expect(() => todoModel.createBatch([
